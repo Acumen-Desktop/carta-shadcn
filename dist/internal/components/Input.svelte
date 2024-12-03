@@ -1,98 +1,192 @@
+<!-- @migration-task Error while migrating Svelte code: migrating this component would require adding a `$props` rune but there's already a variable named props.
+     Rename the variable and try again or migrate by hand. -->
 <!--
 	@component
 	A wrapped textarea component integrated with Carta. It handles the highlighting
 	and propagates events to the Carta instance.	
 -->
 
-<script>import { onMount } from "svelte";
-import { debounce } from "../utils";
-import { BROWSER } from "esm-env";
-import { speculativeHighlightUpdate } from "../speculative";
-export let carta;
-export let value = "";
-export let placeholder = "";
-export let elem;
-export let props = {};
-export let hidden = false;
-let textarea;
-let highlightElem;
-let wrapperElem;
-let highlighted = value;
-let mounted = false;
-let prevValue = value;
-const simpleUUID = Math.random().toString(36).substring(2);
-export const resize = () => {
-  if (!mounted || !textarea) return;
-  textarea.style.height = "0";
-  textarea.style.minHeight = "0";
-  textarea.style.height = textarea.scrollHeight + "px";
-  textarea.style.minHeight = wrapperElem.clientHeight + "px";
-  textarea.scrollTop = 0;
-  const isFocused = document.activeElement === textarea;
-  if (!isFocused) return;
-  if (!carta.input) return;
-  const coords = carta.input.getCursorXY();
-  if (!coords) return;
-  if (coords.top < 0 || coords.top + carta.input.getRowHeight() >= elem.scrollTop + elem.clientHeight)
-    elem.scrollTo({ top: coords?.top, behavior: "instant" });
-};
-const focus = () => {
-  const selectedText = window.getSelection()?.toString();
-  if (selectedText) return;
-  textarea?.focus();
-};
-const highlight = async (text) => {
-  const highlighter = await carta.highlighter();
-  if (!highlighter) return;
-  let html;
-  const hl = await import("../highlight");
-  const { isSingleTheme } = hl;
-  if (isSingleTheme(highlighter.theme)) {
-    html = highlighter.codeToHtml(text, {
-      lang: highlighter.lang,
-      theme: highlighter.theme
-    });
-  } else {
-    html = highlighter.codeToHtml(text, {
-      lang: highlighter.lang,
-      themes: highlighter.theme
-    });
-  }
-  if (carta.sanitizer) {
-    highlighted = carta.sanitizer(html);
-  } else {
-    highlighted = html;
-  }
-  requestAnimationFrame(resize);
-};
-const debouncedHighlight = debounce(highlight, 250);
-const highlightNestedLanguages = debounce(async (text) => {
-  const highlighter = await carta.highlighter();
-  const hl = await import("../highlight");
-  const { loadNestedLanguages } = hl;
-  if (!highlighter) return;
-  const { updated } = await loadNestedLanguages(highlighter, text);
-  if (updated) debouncedHighlight(text);
-}, 300);
-const onValueChange = (value2) => {
-  if (highlightElem) {
-    speculativeHighlightUpdate(highlightElem, prevValue, value2);
-    requestAnimationFrame(resize);
-  }
-  debouncedHighlight(value2);
-  highlightNestedLanguages(value2);
-  prevValue = value2;
-};
-$: if (BROWSER) onValueChange(value);
-onMount(() => {
-  mounted = true;
-  requestAnimationFrame(resize);
-});
-onMount(() => {
-  carta.$setInput(textarea, elem, () => {
-    value = textarea.value;
-  });
-});
+<script lang="ts">
+	import { onMount } from 'svelte';
+	import type { Carta } from '../carta';
+	import type { TextAreaProps } from '../textarea-props';
+	import { debounce } from '../utils';
+	import { BROWSER } from 'esm-env';
+	import { speculativeHighlightUpdate } from '../speculative';
+	import { run } from 'svelte/legacy';
+	import { createEventDispatcher } from 'svelte';
+
+	interface ScrollEvent extends Event {
+		target: HTMLDivElement;
+	}
+
+	interface MountEvent
+		extends CustomEvent<{
+			resize?: () => void;
+			elem: HTMLDivElement;
+		}> {}
+
+	interface $$Props {
+		carta: any;
+		placeholder?: string;
+		value?: string;
+		props?: any;
+		hidden?: boolean;
+		children?: import('svelte').Snippet;
+	}
+
+	interface $$Events {
+		scroll: CustomEvent<{
+			target: HTMLDivElement;
+		}>;
+		mount: CustomEvent<{
+			resize?: () => void;
+			elem: HTMLDivElement;
+		}>;
+	}
+
+	const dispatch = createEventDispatcher<$$Events>();
+
+	let {
+		carta,
+		value: initialValue = '',
+		placeholder = '',
+		props: textareaProps = {},
+		hidden = false,
+		children
+	} = $props();
+
+	let elem!: HTMLDivElement;
+	let textarea!: HTMLTextAreaElement;
+	let highlightElem!: HTMLDivElement;
+	let wrapperElem!: HTMLDivElement;
+
+	let value = $state(initialValue);
+	let highlighted = $state('');
+	let mounted = $state(false);
+	let prevValue = initialValue;
+
+	const simpleUUID = Math.random().toString(36).substring(2);
+
+	/**
+	 * Manually resize the textarea to fit the content, so that it
+	 * always perfectly overlaps the highlighting overlay.
+	 */
+	export const resize = () => {
+		if (!mounted || !textarea || !elem) return;
+		textarea.style.height = '0';
+		textarea.style.minHeight = '0';
+		textarea.style.height = textarea.scrollHeight + 'px';
+		textarea.style.minHeight = wrapperElem.clientHeight + 'px';
+		textarea.scrollTop = 0;
+
+		const isFocused = document.activeElement === textarea;
+		if (!isFocused || !carta.input || !elem) return;
+		const coords = carta.input.getCursorXY();
+		if (!coords) return;
+
+		if (
+			coords.top < 0 ||
+			coords.top + carta.input.getRowHeight() >= elem.scrollTop + elem.clientHeight
+		) {
+			elem.scrollTo({ top: coords?.top, behavior: 'instant' });
+		}
+	};
+
+	const focus = () => {
+		// Allow text selection
+		const selectedText = window.getSelection()?.toString();
+		if (selectedText) return;
+
+		textarea?.focus();
+	};
+
+	/**
+	 * Highlight the text in the textarea.
+	 * @param text The text to highlight.
+	 */
+	const highlight = async (text: string) => {
+		const highlighter = await carta.highlighter();
+		if (!highlighter) return;
+		let html: string;
+
+		const hl = await import('../highlight');
+		const { isSingleTheme } = hl;
+
+		if (isSingleTheme(highlighter.theme)) {
+			// Single theme
+			html = highlighter.codeToHtml(text, {
+				lang: highlighter.lang,
+				theme: highlighter.theme
+			});
+		} else {
+			// Dual theme
+			html = highlighter.codeToHtml(text, {
+				lang: highlighter.lang,
+				themes: highlighter.theme
+			});
+		}
+
+		if (carta.sanitizer) {
+			highlighted = carta.sanitizer(html);
+		} else {
+			highlighted = html;
+		}
+
+		requestAnimationFrame(resize);
+	};
+
+	const debouncedHighlight = debounce(highlight, 250);
+
+	/**
+	 * Highlight the nested languages in the markdown, loading the necessary
+	 * languages if needed.
+	 */
+	const highlightNestedLanguages = debounce(async (text: string) => {
+		const highlighter = await carta.highlighter();
+
+		const hl = await import('../highlight');
+		const { loadNestedLanguages } = hl;
+
+		if (!highlighter) return;
+		const { updated } = await loadNestedLanguages(highlighter, text);
+		if (updated) debouncedHighlight(text);
+	}, 300);
+
+	const onValueChange = (newValue: string) => {
+		if (highlightElem) {
+			speculativeHighlightUpdate(highlightElem, prevValue, newValue);
+			requestAnimationFrame(resize);
+		}
+
+		debouncedHighlight(newValue);
+		highlightNestedLanguages(newValue);
+		prevValue = newValue;
+	};
+
+	$effect(() => {
+		if (BROWSER) onValueChange(value);
+	});
+
+	onMount(() => {
+		mounted = true;
+		const event = new CustomEvent('mount', {
+			detail: {
+				resize,
+				elem
+			}
+		});
+		dispatch('mount', event);
+		requestAnimationFrame(resize);
+	});
+	onMount(() => {
+		carta.$setInput(textarea, elem, () => {
+			const newValue = textarea.value;
+			if (newValue !== value) {
+				value = newValue;
+			}
+		});
+	});
 </script>
 
 <div
@@ -108,9 +202,14 @@ onMount(() => {
 	tabindex="-1"
 	class="carta-input"
 	style="display: {hidden ? 'none' : 'unset'};"
-	on:click={focus}
-	on:keydown={focus}
-	on:scroll
+	onclick={focus}
+	onkeydown={focus}
+	onscroll={() => {
+		const event = new CustomEvent('scroll', {
+			detail: { target: elem }
+		});
+		dispatch('scroll', event);
+	}}
 	bind:this={elem}
 >
 	<div class="carta-input-wrapper" bind:this={wrapperElem}>
@@ -127,18 +226,18 @@ onMount(() => {
 			class="carta-font-code"
 			aria-multiline="true"
 			aria-describedby="editor-unfocus-suggestion-{simpleUUID}"
-			spellcheck={props.spellcheck === true}
+			spellcheck={textareaProps.spellcheck === true}
 			tabindex="0"
 			{placeholder}
-			{...props}
+			{...textareaProps}
 			bind:value
 			bind:this={textarea}
-			on:scroll={() => (textarea.scrollTop = 0)}
+			onscroll={() => (textarea.scrollTop = 0)}
 		></textarea>
 	</div>
 
 	{#if mounted}
-		<slot />
+		{@render children?.()}
 	{/if}
 </div>
 

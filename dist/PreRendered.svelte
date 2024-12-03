@@ -3,8 +3,13 @@
   A basic component to render pre-rendered HTML content with a specific theme.
 -->
 
-<script>export let html;
-export let theme = "default";
+<script lang="ts">
+	interface Props {
+		html: string;
+		theme?: string;
+	}
+
+	let { html, theme = 'default' }: Props = $props();
 </script>
 
 <div class="carta-viewer carta-theme__{theme} markdown-body">

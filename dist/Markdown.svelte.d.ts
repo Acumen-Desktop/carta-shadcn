@@ -1,17 +1,6 @@
 import { SvelteComponentTyped } from "svelte";
-import type { Carta } from '.';
 declare const __propDef: {
-    props: {
-        /**
-             * The Carta instance to use.
-             */ carta: Carta;
-        /**
-             * Content to render.
-             */ value: string;
-        /**
-             * The theme to use, which translates to the CSS class `carta-theme__{theme}`.
-             */ theme?: string | undefined;
-    };
+    props: Record<string, never>;
     events: {
         [evt: string]: CustomEvent<any>;
     };

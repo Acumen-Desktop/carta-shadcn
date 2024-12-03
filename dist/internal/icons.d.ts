@@ -1,15 +1,6 @@
-import type { ComponentType } from 'svelte';
+import type { ComponentType, SvelteComponent } from 'svelte';
 import type { InputEnhancer } from './input';
-import HeadingIcon from './components/icons/HeadingIcon.svelte';
-import ItalicIcon from './components/icons/ItalicIcon.svelte';
-import BoldIcon from './components/icons/BoldIcon.svelte';
-import QuoteIcon from './components/icons/QuoteIcon.svelte';
-import LinkIcon from './components/icons/LinkIcon.svelte';
-import ListBulletedIcon from './components/icons/ListBulletedIcon.svelte';
-import ListNumberedIcon from './components/icons/ListNumberedIcon.svelte';
-import ListTaskIcon from './components/icons/ListTaskIcon.svelte';
-import CodeIcon from './components/icons/CodeIcon.svelte';
-import StrikethroughIcon from './components/icons/StrikethroughIcon.svelte';
+type SvelteIconComponent = ComponentType<SvelteComponent>;
 /**
  * Editor toolbar icon information.
  */
@@ -26,7 +17,7 @@ export interface Icon {
     /**
      * The icon's component.
      */
-    readonly component: ComponentType;
+    readonly component: SvelteIconComponent;
     /**
      * The icon's label (used as aria-label).
      */
@@ -35,52 +26,53 @@ export interface Icon {
 export declare const defaultIcons: readonly [{
     readonly id: "heading";
     readonly action: (input: InputEnhancer) => void;
-    readonly component: typeof HeadingIcon;
+    readonly component: SvelteIconComponent;
     readonly label: "Heading";
 }, {
     readonly id: "bold";
     readonly action: (input: InputEnhancer) => void;
-    readonly component: typeof BoldIcon;
+    readonly component: SvelteIconComponent;
     readonly label: "Bold";
 }, {
     readonly id: "italic";
     readonly action: (input: InputEnhancer) => void;
-    readonly component: typeof ItalicIcon;
+    readonly component: SvelteIconComponent;
     readonly label: "Italic";
 }, {
     readonly id: "strikethrough";
     readonly action: (input: InputEnhancer) => void;
-    readonly component: typeof StrikethroughIcon;
+    readonly component: SvelteIconComponent;
     readonly label: "Strikethrough";
 }, {
     readonly id: "quote";
     readonly action: (input: InputEnhancer) => void;
-    readonly component: typeof QuoteIcon;
+    readonly component: SvelteIconComponent;
     readonly label: "Quote";
 }, {
     readonly id: "code";
     readonly action: (input: InputEnhancer) => void;
-    readonly component: typeof CodeIcon;
+    readonly component: SvelteIconComponent;
     readonly label: "Code";
 }, {
     readonly id: "link";
     readonly action: (input: InputEnhancer) => void;
-    readonly component: typeof LinkIcon;
+    readonly component: SvelteIconComponent;
     readonly label: "Link";
 }, {
     readonly id: "bulletedList";
     readonly action: (input: InputEnhancer) => void;
-    readonly component: typeof ListBulletedIcon;
+    readonly component: SvelteIconComponent;
     readonly label: "Bulleted list";
 }, {
     readonly id: "numberedList";
     readonly action: (input: InputEnhancer) => void;
-    readonly component: typeof ListNumberedIcon;
+    readonly component: SvelteIconComponent;
     readonly label: "Numbered list";
 }, {
     readonly id: "taskList";
     readonly action: (input: InputEnhancer) => void;
-    readonly component: typeof ListTaskIcon;
+    readonly component: SvelteIconComponent;
     readonly label: "Task list";
 }];
 export type DefaultIconId = (typeof defaultIcons)[number]['id'] | 'menu';
+export {};

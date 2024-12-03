@@ -1,21 +1,6 @@
 import { SvelteComponentTyped } from "svelte";
-import type { Labels } from '../labels';
-import type { Carta } from '../carta';
 declare const __propDef: {
-    props: {
-        /**
-             * The Carta instance to use.
-             */ carta: Carta;
-        /**
-             * The current editor mode.
-             */ mode: 'tabs' | 'split';
-        /**
-             * The current tab.
-             */ tab: 'write' | 'preview';
-        /**
-             * Editor labels.
-             */ labels: Labels;
-    };
+    props: Record<string, never>;
     events: {
         [evt: string]: CustomEvent<any>;
     };

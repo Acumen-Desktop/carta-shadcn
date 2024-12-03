@@ -1,38 +1,27 @@
 import { SvelteComponentTyped } from "svelte";
-import type { Carta } from '../carta';
-import type { TextAreaProps } from '../textarea-props';
 declare const __propDef: {
     props: {
         /**
-             * The Carta instance to use.
-             */ carta: Carta;
-        /**
-             * The editor content.
-             */ value?: string | undefined;
-        /**
-             * The placeholder text for the textarea.
-             */ placeholder?: string | undefined;
-        /**
-             * The element of the wrapper div.
-             */ elem: HTMLDivElement;
-        /**
-             * Additional textarea properties.
-             */ props?: TextAreaProps | undefined;
-        /**
-             * Whether this component is hidden (display: none).
-             */ hidden?: boolean | undefined;
-        /**
              * Manually resize the textarea to fit the content, so that it
              * always perfectly overlaps the highlighting overlay.
-             */ resize?: (() => void) | undefined;
-    };
-    events: {
-        scroll: Event;
+             */ resize?: () => void;
     } & {
-        [evt: string]: CustomEvent<any>;
+        carta: any;
+        placeholder?: string;
+        value?: string;
+        props?: any;
+        hidden?: boolean;
+        children?: import("svelte").Snippet;
     };
-    slots: {
-        default: {};
+    slots: {};
+    events: {
+        scroll: CustomEvent<{
+            target: HTMLDivElement;
+        }>;
+        mount: CustomEvent<{
+            resize?: () => void;
+            elem: HTMLDivElement;
+        }>;
     };
 };
 export type InputProps = typeof __propDef.props;

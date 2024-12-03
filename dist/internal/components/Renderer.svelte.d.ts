@@ -1,28 +1,15 @@
 import { SvelteComponentTyped } from "svelte";
-import type { Carta } from '../carta';
 declare const __propDef: {
-    props: {
-        /**
-             * The Carta instance to use.
-             */ carta: Carta;
-        /**
-             * The markdown content to render.
-             */ value: string;
-        /**
-             * The element that wraps the rendered HTML.
-             */ elem: HTMLDivElement;
-        /**
-             * Whether this component is hidden (display: none).
-             */ hidden?: boolean | undefined;
-    };
+    props: Record<string, never>;
+    slots: {};
     events: {
-        scroll: Event;
+        scroll: CustomEvent<{
+            target: HTMLDivElement;
+        }>;
+        mount: CustomEvent<{
+            elem: HTMLDivElement;
+        }>;
         render: CustomEvent<void>;
-    } & {
-        [evt: string]: CustomEvent<any>;
-    };
-    slots: {
-        default: {};
     };
 };
 export type RendererProps = typeof __propDef.props;
