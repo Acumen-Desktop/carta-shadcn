@@ -12,35 +12,33 @@
 	import { onMount } from 'svelte';
 	import type { Carta } from '.';
 
-	
-	
-	
 	interface Props {
 		/**
-	 * The Carta instance to use.
-	 */
+		 * The Carta instance to use.
+		 */
 		carta: Carta;
 		/**
-	 * Content to render.
-	 */
+		 * Content to render.
+		 */
 		value: string;
 		/**
-	 * The theme to use, which translates to the CSS class `carta-theme__{theme}`.
-	 */
+		 * The theme to use, which translates to the CSS class `carta-theme__{theme}`.
+		 */
 		theme?: string;
 	}
 
 	let { carta, value, theme = 'default' }: Props = $props();
 
-	let elem: HTMLDivElement = $state();
+	let elem: HTMLDivElement | undefined = $state();
 
 	let rendered = $state(carta.renderSSR(value));
 	onMount(async () => {
-		// Register the renderer element
-		carta.$setRenderer(elem);
-
-		// Render using asynchronous renderer
-		rendered = await carta.render(value);
+		// Register the renderer element only if it exists
+		if (elem) {
+			carta.$setRenderer(elem);
+			// Render using asynchronous renderer
+			rendered = await carta.render(value);
+		}
 	});
 </script>
 

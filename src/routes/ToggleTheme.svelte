@@ -5,8 +5,6 @@
 
 	let { class: className = '' }: Props = $props();
 	let theme: 'light' | 'dark' = $state('light');
-
-	
 </script>
 
 <button
@@ -20,6 +18,7 @@
 			theme = 'light';
 		}
 	}}
+	aria-label="Toggle theme"
 >
 	<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 256 256">
 		<path

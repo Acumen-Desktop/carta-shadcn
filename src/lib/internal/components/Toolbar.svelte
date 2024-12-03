@@ -13,39 +13,30 @@
 	import { onMount } from 'svelte';
 	import { debounce } from '../utils';
 
-	
-	
-	
-	
 	interface Props {
 		/**
-	 * The Carta instance to use.
-	 */
+		 * The Carta instance to use.
+		 */
 		carta: Carta;
 		/**
-	 * The current editor mode.
-	 */
+		 * The current editor mode.
+		 */
 		mode: 'tabs' | 'split';
 		/**
-	 * The current tab.
-	 */
+		 * The current tab.
+		 */
 		tab: 'write' | 'preview';
 		/**
-	 * Editor labels.
-	 */
+		 * Editor labels.
+		 */
 		labels: Labels;
 	}
 
-	let {
-		carta,
-		mode,
-		tab = $bindable(),
-		labels
-	}: Props = $props();
+	let { carta, mode, tab = $bindable(), labels }: Props = $props();
 
-	let toolbar: HTMLDivElement = $state();
-	let menu: HTMLDivElement = $state();
-	let iconsContainer: HTMLDivElement = $state();
+	let toolbar: HTMLDivElement | undefined = $state();
+	let menu: HTMLDivElement | undefined = $state();
+	let iconsContainer: HTMLDivElement | undefined = $state();
 
 	let visibleIcons = $state([...carta.icons]);
 	let availableWidth = $state(0);
@@ -60,7 +51,15 @@
 
 	const onResize = debounce(async () => {
 		if (!toolbar || !iconsContainer) return;
-		const overflowing = () => toolbar.scrollWidth - toolbar.clientWidth > 0;
+
+		// Create a reference to avoid multiple null checks
+		const toolbarElement = toolbar;
+
+		const overflowing = () => {
+			if (!toolbarElement) return false;
+			return toolbarElement.scrollWidth - toolbarElement.clientWidth > 0;
+		};
+
 		while (overflowing()) {
 			visibleIcons.pop();
 			visibleIcons = visibleIcons;
@@ -127,11 +126,13 @@
 					title={label}
 					aria-label={label}
 					bind:clientWidth={iconWidth}
-					onclick={stopPropagation(preventDefault(() => {
-						carta.input && icon.action(carta.input);
-						carta.input?.update();
-						carta.input?.textarea.focus();
-					}))}
+					onclick={stopPropagation(
+						preventDefault(() => {
+							carta.input && icon.action(carta.input);
+							carta.input?.update();
+							carta.input?.textarea.focus();
+						})
+					)}
 					onkeydown={handleArrowKeysNavigation}
 				>
 					<icon.component />
@@ -162,12 +163,14 @@
 			<button
 				class="carta-icon-full"
 				aria-label={label}
-				onclick={stopPropagation(preventDefault(() => {
-					carta.input && icon.action(carta.input);
-					carta.input?.update();
-					carta.input?.textarea.focus();
-					showMenu = false;
-				}))}
+				onclick={stopPropagation(
+					preventDefault(() => {
+						carta.input && icon.action(carta.input);
+						carta.input?.update();
+						carta.input?.textarea.focus();
+						showMenu = false;
+					})
+				)}
 				onkeydown={handleArrowKeysNavigation}
 			>
 				<icon.component />
