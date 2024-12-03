@@ -17,6 +17,41 @@
 	import { defaultLabels, type Labels } from './internal/labels';
 	import Toolbar from './internal/components/Toolbar.svelte';
 
+	type Mode = 'tabs' | 'split' | 'auto';
+	type Tab = 'write' | 'preview';
+
+	interface ComponentConfig {
+		parent: string | string[];
+		component: any;
+		props: any;
+	}
+
+	interface MountEvent
+		extends CustomEvent<{
+			resize?: () => void;
+			elem: HTMLDivElement;
+		}> {}
+
+	interface ScrollEvent
+		extends CustomEvent<{
+			target: HTMLDivElement;
+		}> {}
+
+	interface RenderEvent extends CustomEvent<void> {}
+
+	const props = $props<{
+		carta: Carta;
+		theme?: string;
+		value?: string;
+		mode?: Mode;
+		scroll?: 'sync' | 'async';
+		disableToolbar?: boolean;
+		placeholder?: string;
+		textarea?: TextAreaProps;
+		selectedTab?: Tab;
+		labels?: Partial<Labels>;
+	}>();
+
 	const {
 		carta,
 		theme = 'default',
@@ -26,20 +61,9 @@
 		disableToolbar = false,
 		placeholder = '',
 		textarea: textareaProps = {},
-		selectedTab = 'write',
+		selectedTab: initialSelectedTab = 'write',
 		labels: userLabels = {}
-	} = $props<{
-		carta: Carta;
-		theme?: string;
-		value?: string;
-		mode?: 'tabs' | 'split' | 'auto';
-		scroll?: 'sync' | 'async';
-		disableToolbar?: boolean;
-		placeholder?: string;
-		textarea?: TextAreaProps;
-		selectedTab?: 'write' | 'preview';
-		labels?: Partial<Labels>;
-	}>();
+	} = props;
 
 	const labels: Labels = {
 		...defaultLabels,
@@ -47,19 +71,24 @@
 	};
 
 	let width = $state(0);
-	let windowMode: 'tabs' | 'split' = $derived(
-		mode === 'auto' ? (width > 768 ? 'split' : 'tabs') : mode
-	);
-	let mounted = $state(false);
-	let resizeInput: (() => void) | undefined;
+	let windowMode = $state<'tabs' | 'split'>(mode === 'auto' ? 'tabs' : (mode as 'tabs' | 'split'));
 
-	let editorElem: HTMLDivElement | null = $state(null);
-	let inputElem: HTMLDivElement | null = $state(null);
-	let rendererElem: HTMLDivElement | null = $state(null);
-	let currentlyScrolling: HTMLDivElement | null = $state(null);
+	$effect(() => {
+		if (mode === 'auto') {
+			windowMode = width > 768 ? 'split' : 'tabs';
+		}
+	});
+
+	let mounted = $state(false);
+	let resizeInput: (() => void) | undefined = undefined;
+
+	let editorElem: HTMLDivElement | undefined = $state(undefined);
+	let inputElem: HTMLDivElement | undefined = $state(undefined);
+	let rendererElem: HTMLDivElement | undefined = $state(undefined);
+	let currentlyScrolling: HTMLDivElement | undefined = $state(undefined);
 	let currentScrollPercentage = $state(0);
 	let value = $state(initialValue);
-	let selectedTab = $state(selectedTab);
+	let selectedTab = $state<Tab>(initialSelectedTab);
 
 	$effect(() => {
 		if (inputElem && rendererElem) {
@@ -88,21 +117,23 @@
 	 * only once after the last scroll event.
 	 */
 	const clearCurrentlyScrolling = debounce(() => {
-		currentlyScrolling = null;
+		currentlyScrolling = undefined;
 	}, 1000);
 
 	/**
 	 * Handle the scroll event to synchronize the scroll between the input and renderer.
 	 * @param e The scroll event.
 	 */
-	function handleScroll(e: Event) {
-		const [scrolled, target] =
-			e.target == inputElem ? [inputElem, rendererElem] : [rendererElem, inputElem];
+	function handleScroll(event: ScrollEvent) {
+		const target = event.detail.target;
+		const [scrolled, scrollTarget] =
+			target === inputElem ? [inputElem, rendererElem] : [rendererElem, inputElem];
 
-		if (windowMode != 'split') return;
-		if (scroll != 'sync') return;
+		if (windowMode !== 'split') return;
+		if (scroll !== 'sync') return;
+		if (!scrolled || !scrollTarget) return;
 
-		synchronizeScroll(scrolled, target);
+		synchronizeScroll(scrolled, scrollTarget);
 	}
 
 	/**
@@ -113,8 +144,7 @@
 	function synchronizeScroll(scrolled: HTMLDivElement, target: HTMLDivElement) {
 		const percentage = calculateScrollPercentage(scrolled);
 		currentScrollPercentage = percentage;
-		// Return if the scrolled is caused by a previous scrollTo
-		if (currentlyScrolling && currentlyScrolling != scrolled) return;
+		if (currentlyScrolling && currentlyScrolling !== scrolled) return;
 
 		currentlyScrolling = scrolled;
 		const targetAvbSpace = target.scrollHeight - target.clientHeight;
@@ -127,7 +157,7 @@
 	 * Load the scroll position of the selected tab.
 	 * @param tab The tab to load the scroll position.
 	 */
-	function loadScrollPosition(tab: 'write' | 'preview') {
+	function loadScrollPosition(tab: Tab) {
 		if (windowMode !== 'tabs') return;
 		const elem = tab === 'write' ? inputElem : rendererElem;
 		if (!elem) return;
@@ -136,8 +166,19 @@
 		elem.scroll({ top: avbSpace * currentScrollPercentage, behavior: 'instant' });
 	}
 
-	onMount(() => carta.$setElement(editorElem));
-	onMount(() => (mounted = true));
+	onMount(() => {
+		if (editorElem) carta.$setElement(editorElem);
+		mounted = true;
+	});
+
+	function handleInputMount(event: MountEvent) {
+		if (event.detail.resize) resizeInput = event.detail.resize;
+		inputElem = event.detail.elem;
+	}
+
+	function handleRendererMount(event: MountEvent) {
+		rendererElem = event.detail.elem;
+	}
 </script>
 
 <div bind:this={editorElem} bind:clientWidth={width} class="carta-editor carta-theme__{theme}">
@@ -150,53 +191,49 @@
 			<Input
 				{carta}
 				{placeholder}
+				{value}
 				props={textareaProps}
-				hidden={!(windowMode == 'split' || selectedTab == 'write')}
-				bind:value
-				bind:resize={resizeInput}
-				bind:elem={inputElem}
-				on:scroll={handleScroll}
+				hidden={!(windowMode === 'split' || selectedTab === 'write')}
+				on:scroll={(e) => handleScroll(e)}
+				on:mount={(e) => handleInputMount(e)}
 			>
-				<!-- Input extensions components -->
 				{#if mounted}
-					{#each carta.components.filter(({ parent }) => [parent]
+					{#each carta.components.filter((comp: ComponentConfig) => [comp.parent]
 							.flat()
-							.includes('input')) as { component, props }}
-						<svelte:component this={component} {carta} {...props} />
+							.includes('input')) as { component: Comp, props: compProps }}
+						<svelte:element this={Comp} {carta} {...compProps} />
 					{/each}
 				{/if}
 			</Input>
 			<Renderer
 				{carta}
 				{value}
-				hidden={!(windowMode == 'split' || selectedTab == 'preview')}
-				bind:elem={rendererElem}
-				on:scroll={handleScroll}
+				hidden={!(windowMode === 'split' || selectedTab === 'preview')}
+				on:scroll={(e) => handleScroll(e)}
+				on:mount={(e) => handleRendererMount(e)}
 				on:render={() => {
-					if (windowMode != 'split') return;
-					if (scroll != 'sync') return;
+					if (windowMode !== 'split') return;
+					if (scroll !== 'sync') return;
+					if (!inputElem || !rendererElem) return;
 					synchronizeScroll(inputElem, rendererElem);
 				}}
 			>
-				<!-- Renderer extensions components -->
 				{#if mounted}
-					{#each carta.components.filter(({ parent }) => [parent]
+					{#each carta.components.filter((comp: ComponentConfig) => [comp.parent]
 							.flat()
-							.includes('renderer')) as { component, props }}
-						<svelte:component this={component} {carta} {...props} />
+							.includes('renderer')) as { component: Comp, props: compProps }}
+						<svelte:element this={Comp} {carta} {...compProps} />
 					{/each}
 				{/if}
 			</Renderer>
 		</div>
 	</div>
 
-	<!-- Editor extensions components -->
-	<!-- prevent loading components on ssr renderings -->
 	{#if mounted}
-		{#each carta.components.filter(({ parent }) => [parent]
+		{#each carta.components.filter((comp: ComponentConfig) => [comp.parent]
 				.flat()
-				.includes('editor')) as { component, props }}
-			<svelte:component this={component} {carta} {...props} />
+				.includes('editor')) as { component: Comp, props: compProps }}
+			<svelte:element this={Comp} {carta} {...compProps} />
 		{/each}
 	{/if}
 </div>

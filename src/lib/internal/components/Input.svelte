@@ -13,31 +13,58 @@
 	import { debounce } from '../utils';
 	import { BROWSER } from 'esm-env';
 	import { speculativeHighlightUpdate } from '../speculative';
+	import { run } from 'svelte/legacy';
+	import { createEventDispatcher } from 'svelte';
 
-	const {
+	interface ScrollEvent extends Event {
+		target: HTMLDivElement;
+	}
+
+	interface MountEvent
+		extends CustomEvent<{
+			resize?: () => void;
+			elem: HTMLDivElement;
+		}> {}
+
+	interface $$Props {
+		carta: any;
+		placeholder?: string;
+		value?: string;
+		props?: any;
+		hidden?: boolean;
+		children?: import('svelte').Snippet;
+	}
+
+	interface $$Events {
+		scroll: CustomEvent<{
+			target: HTMLDivElement;
+		}>;
+		mount: CustomEvent<{
+			resize?: () => void;
+			elem: HTMLDivElement;
+		}>;
+	}
+
+	const dispatch = createEventDispatcher<$$Events>();
+
+	let {
 		carta,
 		value: initialValue = '',
 		placeholder = '',
-		elem,
-		textareaProps = {},
-		hidden = false
-	} = $props<{
-		carta: Carta;
-		value?: string;
-		placeholder?: string;
-		elem?: HTMLDivElement;
-		textareaProps?: TextAreaProps;
-		hidden?: boolean;
-	}>();
+		props: textareaProps = {},
+		hidden = false,
+		children
+	} = $props();
 
-	let textarea: HTMLTextAreaElement = $state(null!);
-	let highlightElem: HTMLDivElement = $state(null!);
-	let wrapperElem: HTMLDivElement = $state(null!);
+	let elem!: HTMLDivElement;
+	let textarea!: HTMLTextAreaElement;
+	let highlightElem!: HTMLDivElement;
+	let wrapperElem!: HTMLDivElement;
 
 	let value = $state(initialValue);
-	let highlighted = $state(value);
+	let highlighted = $state('');
 	let mounted = $state(false);
-	let prevValue = value;
+	let prevValue = initialValue;
 
 	const simpleUUID = Math.random().toString(36).substring(2);
 
@@ -46,7 +73,7 @@
 	 * always perfectly overlaps the highlighting overlay.
 	 */
 	export const resize = () => {
-		if (!mounted || !textarea) return;
+		if (!mounted || !textarea || !elem) return;
 		textarea.style.height = '0';
 		textarea.style.minHeight = '0';
 		textarea.style.height = textarea.scrollHeight + 'px';
@@ -54,16 +81,16 @@
 		textarea.scrollTop = 0;
 
 		const isFocused = document.activeElement === textarea;
-		if (!isFocused) return;
-		if (!carta.input) return;
+		if (!isFocused || !carta.input || !elem) return;
 		const coords = carta.input.getCursorXY();
 		if (!coords) return;
 
 		if (
 			coords.top < 0 ||
 			coords.top + carta.input.getRowHeight() >= elem.scrollTop + elem.clientHeight
-		)
+		) {
 			elem.scrollTo({ top: coords?.top, behavior: 'instant' });
+		}
 	};
 
 	const focus = () => {
@@ -126,31 +153,38 @@
 		if (updated) debouncedHighlight(text);
 	}, 300);
 
-	const onValueChange = (value: string) => {
+	const onValueChange = (newValue: string) => {
 		if (highlightElem) {
-			speculativeHighlightUpdate(highlightElem, prevValue, value);
+			speculativeHighlightUpdate(highlightElem, prevValue, newValue);
 			requestAnimationFrame(resize);
 		}
 
-		debouncedHighlight(value);
-
-		highlightNestedLanguages(value);
-
-		prevValue = value;
+		debouncedHighlight(newValue);
+		highlightNestedLanguages(newValue);
+		prevValue = newValue;
 	};
 
-	run(() => {
+	$effect(() => {
 		if (BROWSER) onValueChange(value);
 	});
 
 	onMount(() => {
 		mounted = true;
-		// Resize once the DOM is updated.
+		const event = new CustomEvent('mount', {
+			detail: {
+				resize,
+				elem
+			}
+		});
+		dispatch('mount', event);
 		requestAnimationFrame(resize);
 	});
 	onMount(() => {
 		carta.$setInput(textarea, elem, () => {
-			value = textarea.value;
+			const newValue = textarea.value;
+			if (newValue !== value) {
+				value = newValue;
+			}
 		});
 	});
 </script>
@@ -170,7 +204,12 @@
 	style="display: {hidden ? 'none' : 'unset'};"
 	onclick={focus}
 	onkeydown={focus}
-	onscroll={bubble('scroll')}
+	onscroll={() => {
+		const event = new CustomEvent('scroll', {
+			detail: { target: elem }
+		});
+		dispatch('scroll', event);
+	}}
 	bind:this={elem}
 >
 	<div class="carta-input-wrapper" bind:this={wrapperElem}>

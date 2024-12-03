@@ -12,50 +12,42 @@
 	import type { Carta } from '../carta';
 	import { debounce } from '../utils';
 
-	
-	
-	
-	
+	interface $$Events {
+		scroll: CustomEvent<{
+			target: HTMLDivElement;
+		}>;
+		mount: CustomEvent<{
+			elem: HTMLDivElement;
+		}>;
+		render: CustomEvent<void>;
+	}
+
 	interface Props {
-		/**
-	 * The Carta instance to use.
-	 */
-		carta: Carta;
-		/**
-	 * The markdown content to render.
-	 */
+		carta: any;
 		value: string;
-		/**
-	 * The element that wraps the rendered HTML.
-	 */
-		elem: HTMLDivElement;
-		/**
-	 * Whether this component is hidden (display: none).
-	 */
 		hidden?: boolean;
 		children?: import('svelte').Snippet;
 	}
 
-	let {
-		carta,
-		value,
-		elem = $bindable(),
-		hidden = false,
-		children
-	}: Props = $props();
+	let { carta, value, hidden = false, children }: Props = $props();
 
 	let mounted = $state(false);
-	let renderedHtml = $state(carta.renderSSR(value));
+	let renderedHtml = $state<string>(carta.renderSSR(value));
 
 	// Debounce the rendering
 	const debouncedRenderer = debounce((value: string) => {
 		carta
 			.render(value)
-			.then((rendered) => {
+			.then((rendered: string) => {
 				renderedHtml = ''; // Force @html to re-render everything
 				renderedHtml = rendered;
 			})
-			.then(() => events('render', void 0));
+			.then(() => {
+				const event = new CustomEvent<void>('render', {
+					detail: undefined
+				});
+				dispatch('render', event);
+			});
 	}, carta.rendererDebounce ?? 300);
 
 	const onValueChange = (value: string) => {
@@ -66,17 +58,36 @@
 		if (mounted) onValueChange(value);
 	});
 
-	onMount(() => carta.$setRenderer(elem));
-	onMount(() => (mounted = true));
+	let elem!: HTMLDivElement;
 
-	const events = createEventDispatcher<{ render: void }>();
+	onMount(() => {
+		if (elem) {
+			carta.$setRenderer(elem);
+			const event = new CustomEvent('mount', {
+				detail: {
+					elem
+				}
+			});
+			dispatch('mount', event);
+		}
+		mounted = true;
+	});
+
+	const dispatch = createEventDispatcher<$$Events>();
 </script>
 
 <div
 	class="carta-renderer markdown-body"
 	style="display: {hidden ? 'none' : 'unset'};"
 	bind:this={elem}
-	onscroll={bubble('scroll')}
+	onscroll={() => {
+		if (elem) {
+			const event = new CustomEvent('scroll', {
+				detail: { target: elem }
+			});
+			dispatch('scroll', event);
+		}
+	}}
 >
 	<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 	{@html renderedHtml}
