@@ -1,0 +1,278 @@
+<!-- @migration-task Error while migrating Svelte code: migrating this component would require adding a `$props` rune but there's already a variable named props.
+     Rename the variable and try again or migrate by hand. -->
+<!--
+	@component
+	A wrapped textarea component integrated with Carta. It handles the highlighting
+	and propagates events to the Carta instance.	
+-->
+
+<script lang="ts">
+	import { onMount } from 'svelte';
+	import type { Carta } from '../carta';
+	import type { TextAreaProps } from '../textarea-props';
+	import { debounce } from '../utils';
+	import { BROWSER } from 'esm-env';
+	import { speculativeHighlightUpdate } from '../speculative';
+
+	const {
+		carta,
+		value: initialValue = '',
+		placeholder = '',
+		elem,
+		textareaProps = {},
+		hidden = false
+	} = $props<{
+		carta: Carta;
+		value?: string;
+		placeholder?: string;
+		elem?: HTMLDivElement;
+		textareaProps?: TextAreaProps;
+		hidden?: boolean;
+	}>();
+
+	let textarea: HTMLTextAreaElement = $state(null!);
+	let highlightElem: HTMLDivElement = $state(null!);
+	let wrapperElem: HTMLDivElement = $state(null!);
+
+	let value = $state(initialValue);
+	let highlighted = $state(value);
+	let mounted = $state(false);
+	let prevValue = value;
+
+	const simpleUUID = Math.random().toString(36).substring(2);
+
+	/**
+	 * Manually resize the textarea to fit the content, so that it
+	 * always perfectly overlaps the highlighting overlay.
+	 */
+	export const resize = () => {
+		if (!mounted || !textarea) return;
+		textarea.style.height = '0';
+		textarea.style.minHeight = '0';
+		textarea.style.height = textarea.scrollHeight + 'px';
+		textarea.style.minHeight = wrapperElem.clientHeight + 'px';
+		textarea.scrollTop = 0;
+
+		const isFocused = document.activeElement === textarea;
+		if (!isFocused) return;
+		if (!carta.input) return;
+		const coords = carta.input.getCursorXY();
+		if (!coords) return;
+
+		if (
+			coords.top < 0 ||
+			coords.top + carta.input.getRowHeight() >= elem.scrollTop + elem.clientHeight
+		)
+			elem.scrollTo({ top: coords?.top, behavior: 'instant' });
+	};
+
+	const focus = () => {
+		// Allow text selection
+		const selectedText = window.getSelection()?.toString();
+		if (selectedText) return;
+
+		textarea?.focus();
+	};
+
+	/**
+	 * Highlight the text in the textarea.
+	 * @param text The text to highlight.
+	 */
+	const highlight = async (text: string) => {
+		const highlighter = await carta.highlighter();
+		if (!highlighter) return;
+		let html: string;
+
+		const hl = await import('$lib/internal/highlight');
+		const { isSingleTheme } = hl;
+
+		if (isSingleTheme(highlighter.theme)) {
+			// Single theme
+			html = highlighter.codeToHtml(text, {
+				lang: highlighter.lang,
+				theme: highlighter.theme
+			});
+		} else {
+			// Dual theme
+			html = highlighter.codeToHtml(text, {
+				lang: highlighter.lang,
+				themes: highlighter.theme
+			});
+		}
+
+		if (carta.sanitizer) {
+			highlighted = carta.sanitizer(html);
+		} else {
+			highlighted = html;
+		}
+
+		requestAnimationFrame(resize);
+	};
+
+	const debouncedHighlight = debounce(highlight, 250);
+
+	/**
+	 * Highlight the nested languages in the markdown, loading the necessary
+	 * languages if needed.
+	 */
+	const highlightNestedLanguages = debounce(async (text: string) => {
+		const highlighter = await carta.highlighter();
+
+		const hl = await import('$lib/internal/highlight');
+		const { loadNestedLanguages } = hl;
+
+		if (!highlighter) return;
+		const { updated } = await loadNestedLanguages(highlighter, text);
+		if (updated) debouncedHighlight(text);
+	}, 300);
+
+	const onValueChange = (value: string) => {
+		if (highlightElem) {
+			speculativeHighlightUpdate(highlightElem, prevValue, value);
+			requestAnimationFrame(resize);
+		}
+
+		debouncedHighlight(value);
+
+		highlightNestedLanguages(value);
+
+		prevValue = value;
+	};
+
+	run(() => {
+		if (BROWSER) onValueChange(value);
+	});
+
+	onMount(() => {
+		mounted = true;
+		// Resize once the DOM is updated.
+		requestAnimationFrame(resize);
+	});
+	onMount(() => {
+		carta.$setInput(textarea, elem, () => {
+			value = textarea.value;
+		});
+	});
+</script>
+
+<div
+	role="tooltip"
+	class="editor-unfocus-suggestion"
+	id="editor-unfocus-suggestion-{simpleUUID}"
+	style="display: {hidden ? 'none' : 'unset'};"
+>
+	Press ESC then TAB to move the focus off the field
+</div>
+<div
+	role="textbox"
+	tabindex="-1"
+	class="carta-input"
+	style="display: {hidden ? 'none' : 'unset'};"
+	onclick={focus}
+	onkeydown={focus}
+	onscroll={bubble('scroll')}
+	bind:this={elem}
+>
+	<div class="carta-input-wrapper" bind:this={wrapperElem}>
+		<div
+			class="carta-highlight carta-font-code"
+			tabindex="-1"
+			aria-hidden="true"
+			bind:this={highlightElem}
+		>
+			<!-- eslint-disable-line svelte/no-at-html-tags -->{@html highlighted}
+		</div>
+
+		<textarea
+			class="carta-font-code"
+			aria-multiline="true"
+			aria-describedby="editor-unfocus-suggestion-{simpleUUID}"
+			spellcheck={textareaProps.spellcheck === true}
+			tabindex="0"
+			{placeholder}
+			{...textareaProps}
+			bind:value
+			bind:this={textarea}
+			onscroll={() => (textarea.scrollTop = 0)}
+		></textarea>
+	</div>
+
+	{#if mounted}
+		{@render children?.()}
+	{/if}
+</div>
+
+<style>
+	.carta-input {
+		position: relative;
+	}
+
+	.carta-input-wrapper {
+		position: relative;
+		font-family: monospace;
+		min-height: 100%;
+	}
+
+	textarea {
+		position: relative;
+		width: 100%;
+		max-width: 100%;
+
+		overflow-y: hidden;
+		resize: none;
+
+		padding: 0;
+		margin: 0;
+		border: 0;
+
+		color: transparent;
+		background: transparent;
+
+		outline: none;
+		tab-size: 4;
+	}
+
+	.carta-highlight {
+		position: absolute;
+		left: 0;
+		right: 0;
+		top: 0;
+		bottom: 0;
+		margin: 0;
+		user-select: none;
+		height: fit-content;
+
+		padding: inherit;
+		margin: inherit;
+
+		word-wrap: break-word;
+		white-space: pre-wrap;
+		word-break: break-word;
+	}
+
+	:global(.carta-highlight .shiki) {
+		margin: 0;
+		tab-size: 4;
+		background-color: transparent !important;
+	}
+
+	:global(.carta-highlight *) {
+		font-family: inherit;
+		font-size: inherit;
+
+		word-wrap: break-word;
+		white-space: pre-wrap;
+		word-break: break-word;
+	}
+
+	.editor-unfocus-suggestion {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		border: 0;
+	}
+</style>
