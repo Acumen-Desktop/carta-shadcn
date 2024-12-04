@@ -6,7 +6,11 @@
  * @param from Previous text.
  * @param to Current text.
  */
-export declare function speculativeHighlightUpdate(container: HTMLDivElement, from: string, to: string): void;
+export declare function speculativeHighlightUpdate(
+	container: HTMLDivElement,
+	from: string,
+	to: string
+): void;
 /**
  * Creates a new text node appended to the last line of the container.
  * @param container The highlight overlay container.

@@ -3,28 +3,28 @@
  * passing the `disableDefaultTabOuts` option.
  */
 export const defaultTabOuts = [
-    {
-        id: 'bold',
-        delimiter: '**'
-    },
-    {
-        id: 'italic',
-        delimiter: ['*', '_']
-    },
-    {
-        id: 'link',
-        delimiter: ')'
-    },
-    {
-        id: 'strikethrough',
-        delimiter: '~~'
-    },
-    {
-        id: 'inline-code',
-        delimiter: '`'
-    },
-    {
-        id: 'block-code',
-        delimiter: '\n```'
-    }
+	{
+		id: 'bold',
+		delimiter: '**'
+	},
+	{
+		id: 'italic',
+		delimiter: ['*', '_']
+	},
+	{
+		id: 'link',
+		delimiter: ')'
+	},
+	{
+		id: 'strikethrough',
+		delimiter: '~~'
+	},
+	{
+		id: 'inline-code',
+		delimiter: '`'
+	},
+	{
+		id: 'block-code',
+		delimiter: '\n```'
+	}
 ];

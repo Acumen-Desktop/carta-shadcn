@@ -1,6 +1,6 @@
 export class Renderer {
-    container;
-    constructor(container) {
-        this.container = container;
-    }
+	container;
+	constructor(container) {
+		this.container = container;
+	}
 }

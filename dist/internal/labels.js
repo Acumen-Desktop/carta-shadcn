@@ -1,5 +1,5 @@
 export const defaultLabels = {
-    writeTab: 'Write',
-    previewTab: 'Preview',
-    iconsLabels: {}
+	writeTab: 'Write',
+	previewTab: 'Preview',
+	iconsLabels: {}
 };

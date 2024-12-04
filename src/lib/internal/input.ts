@@ -22,7 +22,7 @@ export interface InputSettings {
 	readonly shortcuts: KeyboardShortcut[];
 	readonly prefixes: Prefix[];
 	readonly tabOuts: TabOut[];
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 	readonly listeners: Listener<any>[];
 	readonly historyOpts?: Partial<TextAreaHistoryOptions>;
 }

@@ -1,26 +1,36 @@
-import { type BundledTheme, type ThemeInput, type StringLiteralUnion, type BundledLanguage, type SpecialLanguage, type LanguageInput, type LanguageRegistration, type HighlighterGeneric, type ThemeRegistration } from 'shiki';
+import {
+	type BundledTheme,
+	type ThemeInput,
+	type StringLiteralUnion,
+	type BundledLanguage,
+	type SpecialLanguage,
+	type LanguageInput,
+	type LanguageRegistration,
+	type HighlighterGeneric,
+	type ThemeRegistration
+} from 'shiki';
 import type { Intellisense } from './utils';
 /**
  * Custom TextMate grammar rule for the highlighter.
  */
 export type GrammarRule = {
-    name: string;
-    type: 'block' | 'inline';
-    definition: LanguageRegistration['repository'][string];
+	name: string;
+	type: 'block' | 'inline';
+	definition: LanguageRegistration['repository'][string];
 };
 /**
  * Custom TextMate highlighting rule for the highlighter.
  */
 export type HighlightingRule = {
-    light: NonNullable<ThemeRegistration['tokenColors']>[number];
-    dark: NonNullable<ThemeRegistration['tokenColors']>[number];
+	light: NonNullable<ThemeRegistration['tokenColors']>[number];
+	dark: NonNullable<ThemeRegistration['tokenColors']>[number];
 };
 /**
  * Shiki options for the highlighter.
  */
 export type ShikiOptions = {
-    themes?: Array<ThemeInput | StringLiteralUnion<BundledTheme>>;
-    langs?: (LanguageInput | StringLiteralUnion<BundledLanguage> | SpecialLanguage)[];
+	themes?: Array<ThemeInput | StringLiteralUnion<BundledTheme>>;
+	langs?: (LanguageInput | StringLiteralUnion<BundledLanguage> | SpecialLanguage)[];
 };
 type CustomMarkdownLangName = Awaited<(typeof import('./assets/markdown'))['default']['name']>;
 type DefaultLightThemeName = Awaited<(typeof import('./assets/theme-light'))['default']['name']>;
@@ -29,8 +39,8 @@ export declare const customMarkdownLangName: CustomMarkdownLangName;
 export declare const defaultLightThemeName: DefaultLightThemeName;
 export declare const defaultDarkThemeName: DefaultDarkThemeName;
 export declare const loadDefaultTheme: () => Promise<{
-    light: ThemeRegistration;
-    dark: ThemeRegistration;
+	light: ThemeRegistration;
+	dark: ThemeRegistration;
 }>;
 /**
  * Language for the highlighter.
@@ -48,17 +58,17 @@ export type Theme = ThemeName | ThemeRegistration;
  * Dual theme for light and dark mode.
  */
 export type DualTheme = {
-    light: Theme;
-    dark: Theme;
+	light: Theme;
+	dark: Theme;
 };
 /**
  * Options for the highlighter.
  */
 export type HighlighterOptions = {
-    grammarRules: GrammarRule[];
-    highlightingRules: HighlightingRule[];
-    theme: Theme | DualTheme;
-    shiki?: ShikiOptions;
+	grammarRules: GrammarRule[];
+	highlightingRules: HighlightingRule[];
+	theme: Theme | DualTheme;
+	shiki?: ShikiOptions;
 };
 /**
  * Loads the highlighter instance, with custom rules and options. Uses Shiki under the hood.
@@ -66,16 +76,21 @@ export type HighlighterOptions = {
  * @param options Custom options for the highlighter.
  * @returns The highlighter instance.
  */
-export declare function loadHighlighter({ grammarRules, highlightingRules, theme, shiki }: HighlighterOptions): Promise<Highlighter>;
+export declare function loadHighlighter({
+	grammarRules,
+	highlightingRules,
+	theme,
+	shiki
+}: HighlighterOptions): Promise<Highlighter>;
 export interface Highlighter extends HighlighterGeneric<BundledLanguage, BundledTheme> {
-    /**
-     * The language specified for the highlighter.
-     */
-    theme: Theme | DualTheme;
-    /**
-     * The theme specified for the highlighter.
-     */
-    lang: Language;
+	/**
+	 * The language specified for the highlighter.
+	 */
+	theme: Theme | DualTheme;
+	/**
+	 * The theme specified for the highlighter.
+	 */
+	lang: Language;
 }
 /**
  * Checks if a language is a bundled language.
@@ -113,7 +128,10 @@ export declare const isThemeRegistration: (theme: Theme) => theme is ThemeRegist
  * @param text The text to parse for nested languages.
  * @returns Whether the highlighter was updated with new languages.
  */
-export declare const loadNestedLanguages: (highlighter: Highlighter, text: string) => Promise<{
-    updated: boolean;
+export declare const loadNestedLanguages: (
+	highlighter: Highlighter,
+	text: string
+) => Promise<{
+	updated: boolean;
 }>;
 export {};

@@ -47,7 +47,7 @@ export function speculativeHighlightUpdate(container: HTMLDivElement, from: stri
 		const node =
 			currentNodeCharIdx == 0
 				? textNodes.at(currentNodeIdx - 1)
-				: textNodes.at(currentNodeIdx) ?? createTemporaryNode(container);
+				: (textNodes.at(currentNodeIdx) ?? createTemporaryNode(container));
 		if (!node) return; // Could not create a temporary node
 
 		const text = node.textContent ?? '';

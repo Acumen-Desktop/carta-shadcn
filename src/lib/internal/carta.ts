@@ -43,8 +43,8 @@ export type Listener<K extends CartaEventType | keyof HTMLElementEventMap> = [
 		ev: K extends CartaEventType
 			? Event
 			: K extends keyof HTMLElementEventMap
-			  ? HTMLElementEventMap[K]
-			  : Event
+				? HTMLElementEventMap[K]
+				: Event
 	) => unknown,
 	options?: boolean | AddEventListenerOptions
 ];
@@ -66,9 +66,8 @@ export interface ExtensionComponent<T extends object | undefined> {
 	parent: MaybeArray<'editor' | 'input' | 'renderer' | 'preview'>;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Listeners = Listener<any>[];
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 type ExtensionComponents = Array<ExtensionComponent<any>>;
 
 /**
